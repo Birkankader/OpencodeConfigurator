@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Opencode Configurator</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>Opencode Configurator</h1>
+      <span class="subtitle">MCP · Skill · Plugin yönetimi</span>
+    </div>
+    <div class="header-actions">
+      <button id="btn-configdir" class="chip" title="Yapılandırma klasörünü görüntüle / değiştir">
+        <span class="chip-icon">📁</span><span id="config-path">yükleniyor…</span>
+      </button>
+      <button id="btn-export" class="btn secondary" title="Tüm yapılandırmayı JSON olarak indir">⬇ Dışa Aktar</button>
+      <button id="btn-import" class="btn secondary" title="Başka makineden alınan JSON dosyasını yükle">⬆ İçe Aktar</button>
+      <input type="file" id="import-file" accept=".json,application/json" hidden>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="mcp">MCP Sunucuları <span class="count" id="count-mcp">0</span></button>
+    <button class="tab" data-tab="skills">Skill'ler <span class="count" id="count-skills">0</span></button>
+    <button class="tab" data-tab="plugins">Plugin'ler <span class="count" id="count-plugins">0</span></button>
+  </nav>
+
+  <section id="oc-banner" class="oc-banner" hidden>
+    <div class="oc-card" id="oc-cli-card"></div>
+    <div class="oc-card" id="oc-desktop-card"></div>
+  </section>
+
+  <main>
+    <!-- ============ MCP ============ -->
+    <section id="tab-mcp" class="tab-panel">
+      <div class="section-head">
+        <h2>Yüklü MCP Sunucuları</h2>
+        <button id="btn-add-mcp" class="btn primary">+ Özel Sunucu Ekle</button>
+      </div>
+      <div id="mcp-installed" class="list"></div>
+
+      <div class="section-head catalog-head">
+        <h2>Katalog · Popüler MCP Sunucuları</h2>
+      </div>
+      <p class="hint">Anahtarı açtığın sunucu opencode yapılandırmana eklenir. API anahtarı veya klasör yolu gerektirenler önce düzenleme penceresi açar.</p>
+      <div id="mcp-catalog" class="list"></div>
+    </section>
+
+    <!-- ============ SKILLS ============ -->
+    <section id="tab-skills" class="tab-panel" hidden>
+      <div class="section-head">
+        <h2>Skill'ler</h2>
+        <button id="btn-add-skill" class="btn primary">+ Yeni Skill</button>
+      </div>
+      <p class="hint" id="skills-hint"></p>
+      <div id="skills-list" class="list"></div>
+
+      <div class="section-head catalog-head">
+        <h2>Katalog · Popüler Skill'ler</h2>
+      </div>
+      <p class="hint">Anahtarı açtığın skill'in dosyaları GitHub'daki kaynağından indirilip skill klasörüne kurulur.</p>
+      <div id="skill-catalog" class="list"></div>
+    </section>
+
+    <!-- ============ PLUGINS ============ -->
+    <section id="tab-plugins" class="tab-panel" hidden>
+      <div class="section-head">
+        <h2>Plugin'ler</h2>
+        <button id="btn-add-plugin" class="btn primary">+ Plugin Ekle</button>
+      </div>
+      <p class="hint" id="plugins-hint"></p>
+      <div id="plugins-list" class="list"></div>
+
+      <div class="section-head catalog-head">
+        <h2>Katalog · Popüler Plugin'ler</h2>
+      </div>
+      <p class="hint">Anahtarı açtığın plugin opencode.json'daki listeye eklenir; paketi opencode ilk açılışta kendisi indirir.</p>
+      <div id="plugin-catalog" class="list"></div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Her değişiklikten önce otomatik yedek alınır: <code id="backup-path">…</code></span>
+  </footer>
+
+  <!-- ============ MCP DIALOG ============ -->
+  <dialog id="mcp-dialog">
+    <form id="mcp-form" autocomplete="off">
+      <h3 id="mcp-dialog-title">MCP Sunucusu Ekle</h3>
+      <p class="hint" id="mcp-dialog-note"></p>
+      <label class="field">
+        <span>Sunucu adı</span>
+        <input id="mcp-name" required pattern="[A-Za-z0-9_-]+" placeholder="ornek-sunucu"
+               title="Sadece harf, rakam, tire ve alt çizgi">
+      </label>
+      <div class="radio-row">
+        <label><input type="radio" name="mcp-type" value="local" checked> Yerel (komut çalıştırır)</label>
+        <label><input type="radio" name="mcp-type" value="remote"> Uzak (URL)</label>
+      </div>
+      <div id="mcp-local-fields">
+        <label class="field">
+          <span>Komut</span>
+          <input id="mcp-command" placeholder="npx -y @playwright/mcp@latest">
+        </label>
+        <div class="kv-head">
+          <span>Ortam değişkenleri</span>
+          <button type="button" id="mcp-env-add" class="btn tiny">+ Ekle</button>
+        </div>
+        <div id="mcp-env-rows" class="kv-rows"></div>
+      </div>
+      <div id="mcp-remote-fields" hidden>
+        <label class="field">
+          <span>URL</span>
+          <input id="mcp-url" placeholder="https://ornek.com/mcp">
+        </label>
+        <div class="kv-head">
+          <span>HTTP başlıkları (headers)</span>
+          <button type="button" id="mcp-header-add" class="btn tiny">+ Ekle</button>
+        </div>
+        <div id="mcp-header-rows" class="kv-rows"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="mcp-enabled" checked> Etkin</label>
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" data-close>Vazgeç</button>
+        <button type="submit" class="btn primary">Kaydet</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ SKILL DIALOG ============ -->
+  <dialog id="skill-dialog">
+    <form id="skill-form" autocomplete="off">
+      <h3 id="skill-dialog-title">Yeni Skill</h3>
+      <label class="field">
+        <span>Skill adı <small>(küçük harf, tire ile: pdf-isleme gibi)</small></span>
+        <input id="skill-name" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="ornek-skill"
+               title="Küçük harf ve rakamlarla, kelimeler tire ile ayrılır">
+      </label>
+      <label class="field">
+        <span>Açıklama <small>(model bu açıklamaya bakarak skill'i ne zaman kullanacağına karar verir)</small></span>
+        <input id="skill-description" required placeholder="Bu skill ne işe yarar ve ne zaman kullanılmalı?">
+      </label>
+      <label class="field">
+        <span>İçerik (SKILL.md gövdesi, Markdown)</span>
+        <textarea id="skill-content" rows="12" spellcheck="false"></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" data-close>Vazgeç</button>
+        <button type="submit" class="btn primary">Kaydet</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ PLUGIN DIALOG ============ -->
+  <dialog id="plugin-dialog">
+    <form id="plugin-form" autocomplete="off">
+      <h3>Plugin Ekle</h3>
+      <label class="field">
+        <span>Plugin</span>
+        <input id="plugin-name" required placeholder="opencode-ornek-plugin@1.0.0">
+      </label>
+      <p class="hint">npm paket adı (sürümüyle birlikte önerilir) veya yerel dosya yolu girebilirsin.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" data-close>Vazgeç</button>
+        <button type="submit" class="btn primary">Ekle</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ IMPORT DIALOG ============ -->
+  <dialog id="import-dialog">
+    <h3>İçe Aktarma Önizlemesi</h3>
+    <div id="import-summary" class="import-summary"></div>
+    <p class="hint">Aynı isimli mevcut kayıtların üzerine yazılır. İşlemden önce otomatik yedek alınır.</p>
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary" data-close>Vazgeç</button>
+      <button type="button" id="btn-import-confirm" class="btn primary">İçe Aktar</button>
+    </div>
+  </dialog>
+
+  <!-- ============ CONFIG DIR DIALOG ============ -->
+  <dialog id="configdir-dialog">
+    <form id="configdir-form" autocomplete="off">
+      <h3>Yapılandırma Klasörü</h3>
+      <p class="hint">Opencode'un genel (global) yapılandırma klasörü. Boş bırakıp kaydedersen varsayılana dönülür.</p>
+      <label class="field">
+        <span>Klasör yolu</span>
+        <input id="configdir-input" placeholder="varsayılan kullanılıyor">
+      </label>
+      <p class="hint" id="configdir-default"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn secondary" data-close>Vazgeç</button>
+        <button type="submit" class="btn primary">Kaydet</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ INSTALL DIALOG ============ -->
+  <dialog id="install-dialog">
+    <h3 id="install-dialog-title">Kurulum</h3>
+    <p class="hint" id="install-status-line">Başlatılıyor…</p>
+    <pre id="install-log" class="install-log"></pre>
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary" data-close>Arka planda sürdür</button>
+    </div>
+  </dialog>
+
+  <div id="toast-container"></div>
+  <script src="app.js"></script>
+</body>
+</html>

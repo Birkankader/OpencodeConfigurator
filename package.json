@@ -1,0 +1,14 @@
+{
+  "name": "opencode-configurator",
+  "version": "1.0.0",
+  "description": "Opencode için platform bağımsız yapılandırma arayüzü (MCP sunucuları, skill'ler, plugin'ler)",
+  "private": true,
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

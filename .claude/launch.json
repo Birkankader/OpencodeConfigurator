@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "configurator",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js", "--no-open", "--port", "4517"],
+      "port": 4517
+    }
+  ]
+}
