@@ -76,7 +76,11 @@ function card({ enabled, title, badges = [], sub, actions = [], onToggle }) {
   if (onToggle) c.appendChild(makeSwitch(enabled, onToggle, title));
   const body = el("div", "card-body");
   const t = el("div", "card-title", title);
-  for (const [label, cls] of badges) t.appendChild(el("span", "badge " + cls, label));
+  for (const [label, cls, tip] of badges) {
+    const badge = el("span", "badge " + cls, label);
+    if (tip) badge.title = tip;
+    t.appendChild(badge);
+  }
   body.appendChild(t);
   if (sub) {
     const subEl = el("div", "card-sub", sub);
@@ -170,14 +174,18 @@ function renderMcp() {
   }
   for (const entry of state.mcp) {
     const cfg = entry.config || {};
+    const badges = [typeBadge(cfg)];
+    const testBadge = mcpTestBadge(entry.name);
+    if (testBadge) badges.push(testBadge);
     installedBox.appendChild(
       card({
         enabled: entry.enabled,
         title: entry.name,
-        badges: [typeBadge(cfg)],
+        badges,
         sub: mcpSub(cfg),
         onToggle: (on) => post("/api/mcp/toggle", { name: entry.name, enabled: on }),
         actions: [
+          iconBtn("🧪", "Sunucuyu test et", () => testMcp(entry.name)),
           iconBtn("✎", "Düzenle", () => openMcpDialog({ name: entry.name, config: cfg }, true)),
           iconBtn("🗑", "Kaldır", async () => {
             if (!confirm(`"${entry.name}" sunucusu yapılandırmadan kaldırılsın mı?`)) return;
@@ -217,6 +225,34 @@ function renderMcp() {
   }
 }
 
+function mcpTestBadge(name) {
+  const r = state.mcpTestResults && state.mcpTestResults[name];
+  if (!r) return null;
+  if (r.status === "running") return ["test ediliyor…", "file", r.detail];
+  if (r.status === "ok") return ["çalışıyor ✓", "good", r.detail];
+  if (r.status === "auth") return ["oauth bekliyor", "remote", r.detail];
+  return ["hata", "bad", r.detail];
+}
+
+async function testMcp(name, announce = true) {
+  if (announce) toast(`"${name}" test ediliyor… (ilk seferde paket indirme sürebilir)`);
+  refresh();
+  try {
+    const { result } = await post("/api/mcp/test", { name });
+    toast(
+      result.status === "ok"
+        ? `"${name}" çalışıyor ✓ ${result.detail}`
+        : result.status === "auth"
+          ? `"${name}": ${result.detail}`
+          : `"${name}" hata verdi: ${result.detail}`,
+      result.status === "fail"
+    );
+  } catch (e) {
+    toast(e.message, true);
+  }
+  refresh();
+}
+
 function mcpCatalogCard(item) {
   const badges = [typeBadge(item.config)];
   if (item.requires) badges.push(["ayar gerekli", "key"]);
@@ -235,6 +271,7 @@ function mcpCatalogCard(item) {
       }
       await post("/api/mcp", { name: item.id, config: item.config });
       toast(`"${item.name}" eklendi.`);
+      testMcp(item.id, true); // eklenen sunucu hemen doğrulanır (beklenmez)
     },
   });
 }
@@ -323,6 +360,7 @@ $("#mcp-form").addEventListener("submit", async (ev) => {
     $("#mcp-dialog").close();
     toast(`"${name}" kaydedildi.`);
     refresh();
+    if (cfg.enabled) testMcp(name, true); // kaydedilen sunucu hemen doğrulanır
   } catch (e) {
     toast(e.message, true);
   }
@@ -454,11 +492,14 @@ function renderPlugins() {
     return emptyState(box, 'Henüz plugin yok. "+ Plugin Ekle" ile npm paketi ekleyebilirsin.');
   }
   for (const plugin of state.plugins) {
+    const badges = [[plugin.kind === "file" ? "dosya" : "npm", plugin.kind === "file" ? "file" : "local"]];
+    const catEntry = state.pluginCatalog.find((c) => c.npm === basePluginName(plugin.name));
+    if (catEntry && catEntry.requires && plugin.enabled) badges.push(["önkoşullu", "key", catEntry.requires]);
     box.appendChild(
       card({
         enabled: plugin.enabled,
         title: plugin.name,
-        badges: [[plugin.kind === "file" ? "dosya" : "npm", plugin.kind === "file" ? "file" : "local"]],
+        badges,
         onToggle: (on) => post("/api/plugin/toggle", { name: plugin.name, kind: plugin.kind, enabled: on }),
         actions: [
           iconBtn("🗑", "Kaldır", async () => {
@@ -501,8 +542,18 @@ function renderPluginCatalog() {
         sub: `${item.description} — ${item.popularity}` + (item.requires ? ` · ${item.requires}` : ""),
         onToggle: async (on) => {
           if (!on) return;
+          if (
+            item.requires &&
+            !confirm(
+              `"${item.npm}" için önkoşul: ${item.requires}.\n\n` +
+                "Bu şart sağlanmadan eklenirse opencode düzgün çalışmayabilir. Yine de eklensin mi?"
+            )
+          ) {
+            refresh();
+            return;
+          }
           await post("/api/plugin", { name: item.npm });
-          toast(`"${item.npm}" eklendi.`);
+          toast(`"${item.npm}" eklendi — paketi opencode ilk açılışta indirecek.`);
         },
       })
     );
@@ -631,8 +682,12 @@ async function loadOcStatus() {
   }
   // Sayfa yüklendiğinde zaten bitmiş bir işin bildirimi tekrar gösterilmesin
   if (oc.job && oc.job.status !== "running") lastToastedJobId = oc.job.id;
+  try {
+    doctorState = await api("/api/doctor");
+  } catch {}
   renderOcBanner(oc);
   if (oc.job && oc.job.status === "running") startOcPolling();
+  if (doctorState && doctorState.status === "running") pollDoctor();
 }
 
 function reopenInstallDialog() {
@@ -698,6 +753,113 @@ function renderOcBanner(oc) {
     deskCard.appendChild(el("span", "oc-sub", "Kurulu değil"));
     deskCard.appendChild(ocButton("İndir ve kur", () => startInstall("desktop", "download", "Opencode Desktop")));
   }
+
+  renderDoctorCard();
+}
+
+// ---------------------------------------------------------------------------
+// Sağlık kontrolü (doktor) ve güvenli mod
+// ---------------------------------------------------------------------------
+let doctorState = null;
+let doctorPollTimer = null;
+
+function renderDoctorCard() {
+  const c = $("#oc-doctor-card");
+  if (!c) return;
+  c.replaceChildren();
+  const running = doctorState && doctorState.status === "running";
+  let dotCls = "idle";
+  let sub = "Hiç çalıştırılmadı";
+  if (running) {
+    sub = "Kontrol sürüyor…";
+  } else if (doctorState && doctorState.steps && doctorState.steps.length) {
+    const anyFail = doctorState.steps.some((s) => s.status === "fail");
+    const anyWarn = doctorState.steps.some((s) => s.status === "warn");
+    dotCls = anyFail ? "missing" : "ok";
+    sub = anyFail ? "Sorun bulundu — ayrıntılara bak" : anyWarn ? "Uyarılarla tamamlandı" : "Her şey yolunda";
+  }
+  c.appendChild(el("span", "dot " + dotCls));
+  c.appendChild(el("span", "oc-title", "Sağlık"));
+  c.appendChild(el("span", "oc-sub", sub));
+  const hasResults = !!(doctorState && doctorState.steps && doctorState.steps.length);
+  c.appendChild(
+    ocButton(running ? "İzle" : hasResults ? "Sonuçlar" : "Kontrol et", () => runDoctorUi(!running && !hasResults))
+  );
+  c.appendChild(ocButton("Güvenli mod", safeModeUi));
+}
+
+async function runDoctorUi(start) {
+  if (start) {
+    try {
+      await post("/api/doctor/run");
+    } catch (e) {
+      if (e.message.indexOf("sürüyor") === -1) return toast(e.message, true);
+    }
+  }
+  $("#doctor-dialog").showModal();
+  pollDoctor();
+}
+
+async function pollDoctor() {
+  if (doctorPollTimer) return;
+  const tick = async () => {
+    try {
+      doctorState = await api("/api/doctor");
+    } catch {
+      return;
+    }
+    renderDoctorSteps();
+    renderDoctorCard();
+    if (doctorState.status !== "running" && doctorPollTimer) {
+      clearInterval(doctorPollTimer);
+      doctorPollTimer = null;
+      refresh(); // MCP test rozetleri güncellensin
+    }
+  };
+  await tick();
+  if (doctorState && doctorState.status === "running") {
+    doctorPollTimer = setInterval(tick, 1500);
+  }
+}
+
+function renderDoctorSteps() {
+  const box = $("#doctor-steps");
+  box.replaceChildren();
+  if (!doctorState || !doctorState.steps || doctorState.steps.length === 0) {
+    box.appendChild(el("div", "hint", "Henüz sonuç yok. \"Kontrol et\" ile başlat."));
+    return;
+  }
+  for (const s of doctorState.steps) {
+    const row = el("div", "doctor-step");
+    const head = el("div", "doctor-step-head");
+    const icon = s.status === "running" ? "⏳" : s.status === "ok" ? "✓" : s.status === "warn" ? "⚠" : "✗";
+    head.appendChild(el("span", "step-icon " + (s.status === "running" ? "" : s.status), icon));
+    head.appendChild(el("span", null, s.label));
+    if (s.ms != null) head.appendChild(el("span", "ms", Math.round(s.ms) + " ms"));
+    row.appendChild(head);
+    if (s.detail) row.appendChild(el("div", "doctor-step-detail", s.detail));
+    box.appendChild(row);
+  }
+}
+
+async function safeModeUi() {
+  if (
+    !confirm(
+      "Güvenli mod: TÜM MCP sunucuları ve plugin'ler devre dışı bırakılır (hiçbir şey silinmez; " +
+        "anahtarlarla tek tek geri açabilirsin).\n\nOpencode açılmıyor ya da donuyorsa en hızlı kurtarma yolu budur. Devam edilsin mi?"
+    )
+  )
+    return;
+  try {
+    const r = await post("/api/safe-mode");
+    toast(
+      `Güvenli mod uygulandı: ${r.mcpCount} MCP sunucusu ve ${r.pluginCount} plugin kapatıldı. ` +
+        "Opencode'u yeniden başlat; sonra öğeleri tek tek açıp test ederek suçluyu bul."
+    );
+  } catch (e) {
+    toast(e.message, true);
+  }
+  refresh();
 }
 
 async function startInstall(target, method, title) {
@@ -759,6 +921,7 @@ document.querySelectorAll("dialog [data-close]").forEach((btn) =>
   btn.addEventListener("click", () => btn.closest("dialog").close())
 );
 
+$("#doctor-rerun").addEventListener("click", () => runDoctorUi(true));
 $("#btn-add-mcp").addEventListener("click", () => openMcpDialog(null, false));
 $("#btn-add-skill").addEventListener("click", () => openSkillDialog(null));
 $("#btn-add-plugin").addEventListener("click", () => {

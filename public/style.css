@@ -127,7 +127,7 @@ header {
 /* ---------- Opencode durum bandı ---------- */
 .oc-banner {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 10px;
   padding: 14px 28px 0;
   max-width: 980px;
@@ -148,6 +148,7 @@ header {
 .oc-card .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .oc-card .dot.ok { background: var(--ok); }
 .oc-card .dot.missing { background: var(--danger); }
+.oc-card .dot.idle { background: var(--text-dim); }
 .oc-card .oc-title { font-weight: 700; }
 .oc-card .oc-sub { color: var(--text-dim); font-size: .78rem; flex: 1; min-width: 120px; }
 .oc-card .btn { padding: 5px 11px; font-size: .76rem; border-radius: 8px; }
@@ -250,6 +251,36 @@ h2 { font-size: 1.02rem; font-weight: 700; }
 .badge.remote { color: #d0a0ff; border-color: #4d3766; }
 .badge.file { color: #ffc46b; border-color: #66512b; }
 .badge.key { color: #ffb3ad; border-color: #663a37; }
+.badge.good { color: #5fd39f; border-color: #2e5c46; }
+.badge.bad { color: #ff958f; border-color: #66302c; }
+
+/* ---------- Sağlık kontrolü ---------- */
+.doctor-steps { display: flex; flex-direction: column; gap: 10px; }
+.doctor-step {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.doctor-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .88rem;
+  font-weight: 650;
+}
+.doctor-step-head .ms { color: var(--text-dim); font-weight: 400; font-size: .76rem; margin-left: auto; }
+.doctor-step-detail {
+  color: var(--text-dim);
+  font-size: .78rem;
+  margin-top: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+.step-icon.ok { color: var(--ok); }
+.step-icon.warn { color: #ffc46b; }
+.step-icon.fail { color: var(--danger); }
 
 /* ---------- Toggle switch ---------- */
 .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }

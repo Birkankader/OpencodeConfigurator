@@ -20,6 +20,7 @@ const store = require("./lib/store");
 const { MCP_CATALOG, PLUGIN_CATALOG, SKILL_CATALOG } = require("./lib/catalog");
 const { collectSkillFiles } = require("./lib/github");
 const installer = require("./lib/installer");
+const doctor = require("./lib/doctor");
 
 const PUBLIC_DIR = path.join(__dirname, "public");
 const MIME = {
@@ -94,6 +95,7 @@ async function handleApi(req, res, url) {
         mcpCatalog: MCP_CATALOG,
         pluginCatalog: PLUGIN_CATALOG,
         skillCatalog: SKILL_CATALOG,
+        mcpTestResults: doctor.getState().mcpResults,
       });
 
     case "POST /api/mcp": {
@@ -151,7 +153,23 @@ async function handleApi(req, res, url) {
 
     case "POST /api/plugin": {
       const body = await readBody(req);
-      store.addPlugin(body.name);
+      const name = String(body.name || "").trim();
+      // npm paketi eklenmeden önce kayıt defterinde doğrula — var olmayan
+      // paketler opencode açılışını yavaşlatır/bozar
+      if (name && !doctor.isPathSpec(name)) {
+        try {
+          const reg = await doctor.npmPackageExists(doctor.pluginBase(name));
+          if (reg.exists === false) {
+            const e = new Error(`npm'de "${doctor.pluginBase(name)}" adlı paket yok. Yazımı kontrol et.`);
+            e.status = 400;
+            throw e;
+          }
+        } catch (err) {
+          if (err.status) throw err;
+          // kayıt defterine ulaşılamıyorsa (çevrimdışı) eklemeyi engelleme
+        }
+      }
+      store.addPlugin(name);
       return json(res, 200, { ok: true });
     }
     case "POST /api/plugin/toggle": {
@@ -177,6 +195,24 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       const report = store.importAll(body.data);
       return json(res, 200, { ok: true, report });
+    }
+
+    case "GET /api/doctor":
+      return json(res, 200, doctor.getState());
+
+    case "POST /api/doctor/run":
+      await doctor.runDoctor();
+      return json(res, 200, { ok: true });
+
+    case "POST /api/mcp/test": {
+      const body = await readBody(req);
+      const result = await doctor.testMcpServer(body.name);
+      return json(res, 200, { ok: true, result });
+    }
+
+    case "POST /api/safe-mode": {
+      const summary = store.safeMode();
+      return json(res, 200, { ok: true, ...summary });
     }
 
     case "GET /api/opencode":

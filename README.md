@@ -49,6 +49,16 @@ Seçenekler: `node server.js --port 5000 --config-dir /baska/klasor --no-open`
 - **Dışa / İçe Aktar** — tüm MCP + skill (dosyalarıyla birlikte) + plugin
   yapılandırmasını tek JSON dosyası olarak indir; başka bilgisayarda "İçe
   Aktar" ile geri yükle. Önce özet gösterilir, onaydan sonra uygulanır.
+- **Sağlık kontrolü** — üst banttaki "Sağlık" kartından: her MCP sunucusu
+  gerçekten çalıştırılıp MCP el sıkışmasıyla test edilir (bu, npx paketini
+  önceden indirdiği için opencode'un ilk açılışı da hızlanır), plugin'ler npm
+  kayıt defterinde doğrulanır, opencode'un açılış süresi sınanır ve opencode
+  günlüğündeki son hatalar gösterilir. MCP satırlarındaki 🧪 düğmesiyle tek
+  sunucu da test edilebilir; katalogdan eklenen sunucular otomatik test edilir.
+- **Güvenli mod** — opencode açılmıyor ya da donuyorsa tek tıkla TÜM MCP
+  sunucularını ve plugin'leri devre dışı bırakır (hiçbir şey silinmez).
+  Opencode'u yeniden başlattıktan sonra öğeleri anahtarlarla tek tek açıp
+  test ederek sorunlu olanı bulursun.
 
 ## Nasıl çalışır
 
@@ -71,6 +81,22 @@ Araç, opencode'un **global yapılandırma klasörünü** düzenler:
 - **Yedekleme** → her yazma işleminden önce `configurator-backups/` klasörüne
   zaman damgalı yedek alınır (son 25 yedek tutulur). Silinen skill'ler de
   buraya taşınır, kalıcı silinmez.
+
+## Sorun giderme: opencode açılmıyor / donuyor
+
+Eklenen MCP sunucuları ve plugin'ler diske hemen inmez — **opencode ilk
+açılışta indirir**. Bu yüzden çok sayıda öğe ekledikten sonraki ilk açılış
+uzun sürebilir; kurulumu tamamlanmamış bir plugin (ör. hesap/`setup` komutu
+gerektirenler) opencode'u bozabilir. Çözüm sırası:
+
+1. Configurator'da **Sağlık → Kontrol et** — hangi öğenin sorunlu olduğunu
+   adıyla gösterir.
+2. Acilen çalışır hale getirmek için **Güvenli mod** — her şeyi kapatır,
+   opencode yeniden başlatınca temiz açılır.
+3. Öğeleri anahtarlarla **tek tek** açıp her MCP sunucusunu 🧪 ile test et;
+   sorunlu olanı bulunca kapalı bırak ya da kaldır.
+4. "önkoşullu" rozetli plugin'lerin gereksinimlerini (API anahtarı, `setup`
+   komutu, abonelik) tamamlamadan etkinleştirme.
 
 ## Notlar
 

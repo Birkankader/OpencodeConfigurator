@@ -32,6 +32,7 @@
   <section id="oc-banner" class="oc-banner" hidden>
     <div class="oc-card" id="oc-cli-card"></div>
     <div class="oc-card" id="oc-desktop-card"></div>
+    <div class="oc-card" id="oc-doctor-card"></div>
   </section>
 
   <main>
@@ -197,6 +198,17 @@
         <button type="submit" class="btn primary">Kaydet</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- ============ DOCTOR DIALOG ============ -->
+  <dialog id="doctor-dialog">
+    <h3>Sağlık Kontrolü</h3>
+    <p class="hint">MCP sunucuları gerçekten çalıştırılıp test edilir (ilk sefer paket indirme nedeniyle uzun sürebilir), plugin'ler npm'de doğrulanır, opencode'un açılışı sınanır.</p>
+    <div id="doctor-steps" class="doctor-steps"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn secondary" data-close>Kapat</button>
+      <button type="button" class="btn primary" id="doctor-rerun">Yeniden çalıştır</button>
+    </div>
   </dialog>
 
   <!-- ============ INSTALL DIALOG ============ -->
