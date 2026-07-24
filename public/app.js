@@ -620,6 +620,7 @@ $("#configdir-form").addEventListener("submit", async (ev) => {
 // Opencode kurulum durumu (CLI + Desktop)
 // ---------------------------------------------------------------------------
 let ocPollTimer = null;
+let lastToastedJobId = null;
 
 async function loadOcStatus() {
   let oc;
@@ -628,8 +629,17 @@ async function loadOcStatus() {
   } catch {
     return; // durum bandı kritik değil; sessizce geç
   }
+  // Sayfa yüklendiğinde zaten bitmiş bir işin bildirimi tekrar gösterilmesin
+  if (oc.job && oc.job.status !== "running") lastToastedJobId = oc.job.id;
   renderOcBanner(oc);
   if (oc.job && oc.job.status === "running") startOcPolling();
+}
+
+function reopenInstallDialog() {
+  $("#install-dialog-title").textContent = "Kurulum günlüğü";
+  $("#install-status-line").textContent = "Çalışıyor…";
+  $("#install-dialog").showModal();
+  startOcPolling();
 }
 
 function ocButton(label, onClick) {
@@ -647,11 +657,16 @@ function renderOcBanner(oc) {
   cliCard.replaceChildren();
   deskCard.replaceChildren();
 
+  const runningTarget = oc.job && oc.job.status === "running" ? oc.job.target : null;
+
   // --- CLI kartı ---
   cliCard.appendChild(el("span", "dot " + (oc.cli.installed ? "ok" : "missing")));
   cliCard.appendChild(el("span", "oc-title", "Opencode CLI"));
   if (oc.cli.installed) {
     cliCard.appendChild(el("span", "oc-sub", `${oc.cli.version} — ${oc.cli.path}`));
+  } else if (runningTarget === "cli") {
+    cliCard.appendChild(el("span", "oc-sub", "Kurulum sürüyor…"));
+    cliCard.appendChild(ocButton("Günlüğü göster", reopenInstallDialog));
   } else {
     cliCard.appendChild(el("span", "oc-sub", "Kurulu değil"));
     cliCard.appendChild(ocButton("npm ile kur", () => startInstall("cli", "npm", "Opencode CLI (npm)")));
@@ -676,6 +691,9 @@ function renderOcBanner(oc) {
     deskCard.appendChild(el("span", "oc-sub", desk.note || "Bu platform için resmî masaüstü uygulaması bulunamadı."));
   } else if (!oc.sources.desktopAsset) {
     deskCard.appendChild(el("span", "oc-sub", "Bu platform/işlemci için indirme paketi yok."));
+  } else if (runningTarget === "desktop") {
+    deskCard.appendChild(el("span", "oc-sub", "İndirme/kurulum sürüyor…"));
+    deskCard.appendChild(ocButton("Günlüğü göster", reopenInstallDialog));
   } else {
     deskCard.appendChild(el("span", "oc-sub", "Kurulu değil"));
     deskCard.appendChild(ocButton("İndir ve kur", () => startInstall("desktop", "download", "Opencode Desktop")));
@@ -715,7 +733,9 @@ function startOcPolling() {
       clearInterval(ocPollTimer);
       ocPollTimer = null;
       renderOcBanner(oc);
-      if (oc.job) {
+      // Aynı işin bildirimi yalnızca bir kez gösterilir
+      if (oc.job && oc.job.id !== lastToastedJobId) {
+        lastToastedJobId = oc.job.id;
         toast(
           oc.job.status === "done" ? oc.job.note || "Kurulum tamamlandı." : "Kurulum başarısız: " + (oc.job.note || ""),
           oc.job.status !== "done"
