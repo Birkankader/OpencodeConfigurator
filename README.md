@@ -1,8 +1,10 @@
 # Opencode Configurator
 
-[Opencode](https://opencode.ai) için platform bağımsız yapılandırma arayüzü.
-MCP sunucularını, skill'leri ve plugin'leri tek ekrandan yönet; tüm kurulumunu
-JSON olarak dışa aktarıp başka bir bilgisayarda içe aktar.
+[Opencode](https://opencode.ai) için platform bağımsız kurulum ve yapılandırma
+arayüzü. **Opencode makinede kurulu değilse önce onu kurar** — hem CLI hem
+Desktop uygulaması tek tıkla. Sonrasında MCP sunucularını, skill'leri ve
+plugin'leri tek ekrandan yönet; tüm kurulumunu JSON olarak dışa aktarıp başka
+bir bilgisayarda içe aktar.
 
 Harici hiçbir bağımlılık yoktur — `npm install` gerekmez. Sadece **Node.js 18+**
 kurulu olması yeterlidir. macOS, Windows ve Linux'ta aynı şekilde çalışır.
@@ -72,8 +74,9 @@ Araç, opencode'un **global yapılandırma klasörünü** düzenler:
 
 ## Notlar
 
-- opencode henüz kurulu olmasa bile kullanılabilir: klasör ve dosyalar
-  gerektiğinde oluşturulur, opencode kurulunca hazır olur.
+- opencode kurulu olmasa bile çalışır: üstteki durum bandı neyin eksik
+  olduğunu gösterir ve tek tıkla kurulumunu sunar; yapılandırma klasörü ve
+  dosyaları da gerektiğinde kendiliğinden oluşturulur.
 - `opencode.json` içindeki yorumlar (JSONC) okunurken sorun çıkarmaz; ancak bu
   araç dosyayı kaydettiğinde yorumlar korunmaz (yedeği alınır).
 - Dışa aktarılan dosya, MCP sunucularına girdiğin **API anahtarlarını
